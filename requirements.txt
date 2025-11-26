@@ -1,0 +1,4 @@
+polars==1.17.1
+pyyaml
+python-dotenv
+pydantic

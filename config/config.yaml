@@ -1,0 +1,15 @@
+python: "3.10"
+random_seed: 42
+confidence_min: 0.6
+use_sample_data: true
+
+paths:
+  data_csv_env: "DATA_CSV"
+  sample_csv: "data/sample_fb_ads.csv"
+  reports_dir: "reports"
+  logs_dir: "logs"
+
+metrics:
+  low_ctr_threshold: 0.01
+  low_roas_threshold: 1.2
+  window_days: 7
