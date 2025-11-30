@@ -1,0 +1,49 @@
+import json
+import time
+import os
+from datetime import datetime
+
+LOG_PATH = "logs/traces.jsonl"
+os.makedirs("logs", exist_ok=True)
+
+def log_event(agent, event, status="info", extra=None):
+    record = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "agent": agent,
+        "event": event,
+        "status": status,
+        "extra": extra or {},
+    }
+
+    with open(LOG_PATH, "a", encoding="utf-8") as f:
+        f.write(json.dumps(record) + "\n")
+
+
+def time_block(agent, action):
+    start = time.time()
+    log_event(agent, f"start_{action}", "start")
+    return start
+
+
+def end_block(agent, action, start_time, extra=None):
+    duration = time.time() - start_time
+    log_event(
+        agent,
+        f"end_{action}",
+        "end",
+        {"duration_sec": round(duration, 4), **(extra or {})},
+    )
+{"timestamp": "2025-11-30T19:36:37.331680", "agent": "pipeline", "event": "start", "status": "info", "extra": {"query": "Analyze ROAS drop in last 7 days"}}
+{"timestamp": "2025-11-30T19:36:37.347967", "agent": "planner", "event": "start_plan_generation", "status": "info", "extra": {}}
+{"timestamp": "2025-11-30T19:36:37.348428", "agent": "planner", "event": "end_plan_generation", "status": "info", "extra": {"duration_sec": 0.0004658699035644531, "steps": 4}}
+{"timestamp": "2025-11-30T19:36:37.348925", "agent": "data_agent", "event": "start_load_summarize", "status": "info", "extra": {}}
+{"timestamp": "2025-11-30T19:36:37.349411", "agent": "data_agent", "event": "start_run", "status": "info", "extra": {}}
+{"timestamp": "2025-11-30T19:36:37.523324", "agent": "data_agent", "event": "end_run", "status": "info", "extra": {"duration_sec": 0.17389369010925293, "rows_loaded": 4500, "rows_low_ctr": 1369}}
+{"timestamp": "2025-11-30T19:36:37.524210", "agent": "data_agent", "event": "end_load_summarize", "status": "info", "extra": {"duration_sec": 0.17527461051940918, "rows_raw": 4500, "rows_low_ctr": 1369}}
+{"timestamp": "2025-11-30T19:36:37.524829", "agent": "insight_agent", "event": "start_generate_hypotheses", "status": "info", "extra": {}}
+{"timestamp": "2025-11-30T19:36:37.526320", "agent": "insight_agent", "event": "end_generate_hypotheses", "status": "info", "extra": {"duration_sec": 0.0014846324920654297, "num_hypotheses": 1}}
+{"timestamp": "2025-11-30T19:36:37.526993", "agent": "evaluator", "event": "start_validate_hypotheses", "status": "info", "extra": {}}
+{"timestamp": "2025-11-30T19:36:37.530156", "agent": "evaluator", "event": "end_validate_hypotheses", "status": "info", "extra": {"duration_sec": 0.0031456947326660156, "num_validated": 1}}
+{"timestamp": "2025-11-30T19:36:37.530911", "agent": "creative_generator", "event": "start_generate_creatives", "status": "info", "extra": {}}
+{"timestamp": "2025-11-30T19:36:37.532139", "agent": "creative_generator", "event": "end_generate_creatives", "status": "info", "extra": {"duration_sec": 0.001222372055053711, "num_creative_recos": 20}}
+{"timestamp": "2025-11-30T19:36:37.536998", "agent": "pipeline", "event": "end", "status": "info", "extra": {"runtime_sec": 0.20396876335144043}}

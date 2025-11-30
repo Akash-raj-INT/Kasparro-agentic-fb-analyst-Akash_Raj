@@ -1,0 +1,9 @@
+{
+  "pipeline_runtime_sec": 0.204,
+  "memory_usage_mb": 54.11,
+  "rows_raw": 4500,
+  "rows_low_ctr": 1369,
+  "num_hypotheses": 1,
+  "num_validated": 1,
+  "num_creative_recos": 20
+}

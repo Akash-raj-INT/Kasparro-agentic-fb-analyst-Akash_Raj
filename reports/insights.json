@@ -7,7 +7,7 @@
       "evidence": {
         "recent_roas": 7.871855976676383,
         "previous_roas": 7.964285714285715,
-        "low_roas_spend_share": 0.015789569419806877
+        "low_roas_spend_share": 0.015789569419806873
       },
       "hypothesis": "Recent campaigns are less efficient. Possible causes: audience fatigue, higher spend on low-ROAS campaigns, or weaker creatives.",
       "confidence": 0.6

@@ -1,13 +1,17 @@
 import os
-from typing import Any, Dict
+import json
+from typing import Dict, Any
 
 import polars as pl
 
-from .base import BaseAgent
+from src.agents.base import BaseAgent
+from src.utils.logger import time_block, end_block, log_event
+from src.utils.retry import retry
+from src.utils.schema_utils import validate_schema
 
 
 class DataAgent(BaseAgent):
-    name = "data"
+    name = "data_agent"
 
     def _get_data_path(self) -> str:
         paths = self.config.get("paths", {})
@@ -16,33 +20,46 @@ class DataAgent(BaseAgent):
         env_var = paths.get("data_csv_env", "DATA_CSV")
         return os.environ.get(env_var, "")
 
+    @retry(agent="data_agent", action="load_and_parse_csv", retries=3, delay=1)
+    def _load_csv(self, csv_path: str) -> pl.DataFrame:
+        return pl.read_csv(csv_path, try_parse_dates=True)
+
     def run(self, **kwargs) -> Dict[str, Any]:
+        start = time_block(self.name, "run")
+
         csv_path = self._get_data_path()
         if not csv_path or not os.path.exists(csv_path):
-            raise FileNotFoundError(f"CSV not found at {csv_path}")
+            log_event(self.name, "csv_missing", "error", {"path": csv_path})
+            raise FileNotFoundError(f"CSV not found at: {csv_path}")
 
-        # Read CSV with polars
-        df = pl.read_csv(csv_path, try_parse_dates=True)
+        # Load file
+        df = self._load_csv(csv_path)
 
-        # Ensure date column is proper Date/Datetime
+        # Validate schema (P1 requirement)
+        validate_schema(df, agent=self.name)
+
+        # Ensure date column
         if "date" in df.columns and df.schema["date"] == pl.Utf8:
             df = df.with_columns(
                 pl.col("date").str.strptime(pl.Date, strict=False)
             )
 
         # Cast numeric columns
-        num_cols_float = ["ctr", "roas"]
-        num_cols_other = ["spend", "impressions", "clicks", "purchases", "revenue"]
+        numeric_casts = {
+            "ctr": pl.Float64,
+            "roas": pl.Float64,
+            "spend": pl.Float64,
+            "impressions": pl.Float64,
+            "clicks": pl.Float64,
+            "purchases": pl.Float64,
+            "revenue": pl.Float64,
+        }
 
-        for col in num_cols_float:
+        for col, dtype in numeric_casts.items():
             if col in df.columns:
-                df = df.with_columns(pl.col(col).cast(pl.Float64))
+                df = df.with_columns(pl.col(col).cast(dtype))
 
-        for col in num_cols_other:
-            if col in df.columns:
-                df = df.with_columns(pl.col(col).cast(pl.Float64))
-
-        # Time-series summary by date
+        # Aggregate summaries
         by_date = (
             df.group_by("date")
             .agg(
@@ -57,7 +74,6 @@ class DataAgent(BaseAgent):
             .sort("date")
         )
 
-        # Campaign-level summary
         by_campaign = (
             df.group_by("campaign_name")
             .agg(
@@ -71,15 +87,18 @@ class DataAgent(BaseAgent):
             )
         )
 
-        # Low CTR ads
-        low_ctr_threshold = (
-            self.config.get("metrics", {}).get("low_ctr_threshold", 0.01)
-        )
+        low_ctr_threshold = self.config.get("metrics", {}).get("low_ctr_threshold", 0.01)
         low_ctr_ads = df.filter(pl.col("ctr") < low_ctr_threshold)
 
+        # End logging
+        end_block(self.name, "run", start, extra={
+            "rows_loaded": len(df),
+            "rows_low_ctr": len(low_ctr_ads)
+        })
+
         return {
-            "raw_df": df,                 # polars.DataFrame
-            "by_date": by_date,           # polars.DataFrame
-            "by_campaign": by_campaign,   # polars.DataFrame
-            "low_ctr_ads": low_ctr_ads,   # polars.DataFrame
+            "raw_df": df,
+            "by_date": by_date,
+            "by_campaign": by_campaign,
+            "low_ctr_ads": low_ctr_ads,
         }
